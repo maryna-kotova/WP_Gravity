@@ -1,0 +1,137 @@
+version: "3"
+
+services:
+  php:
+    build:
+      dockerfile: ./docker/php/Dockerfile
+      context: ./
+    container_name: gravity_php
+    env_file:
+      - .docker.env
+    volumes:
+      - ./:/app
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - default
+      - shared
+
+  phpd:
+    build:
+      dockerfile: ./docker/php/Dockerfile
+      context: ./
+      args:
+        - PHP_USE_XDEBUG=true
+    container_name: gravity_phpd
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .docker.env
+    volumes:
+      - ./:/app
+      - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - default
+      - shared
+
+  nginx:
+    build:
+      dockerfile: ./docker/nginx/Dockerfile
+      context: ./
+    container_name: gravity_nginx
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gravity.rule=Host(`kap-weine.loc`)"
+      - "traefik.http.routers.gravity.entrypoints=web"
+    volumes:
+      - ./:/app
+    networks:
+      - default
+      - web
+
+  redis:
+    image: redis
+    container_name: gravity_redis
+    networks:
+      - default
+
+networks:
+  default:
+    external: false
+  shared:
+    external: true
+  web:
+    external: true
+
+  13. Create new  file project_name/docker-compose.yml
+version: "3"
+
+services:
+
+  php:
+    build:
+      dockerfile: $PWD/docker/php/Dockerfile
+      context: $PWD/docker/php
+    container_name: gravity_php
+    env_file:
+      - .docker.env
+    volumes:
+      - $PWD:/app
+      - $PWD/docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+
+  phpd:
+    build:
+      dockerfile: $PWD/docker/php/Dockerfile
+      context: $PWD/docker/php
+      args:
+        - PHP_USE_XDEBUG=true
+    container_name: gravity_phpd
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .docker.env
+    volumes:
+      - $PWD:/app
+      - $PWD/docker/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+      - $PWD/docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+
+  nginx:
+    build:
+      dockerfile: $PWD/docker/nginx/Dockerfile
+      context: $PWD/docker/nginx
+    container_name: gravity_nginx
+    ports:
+      - 80:80
+    volumes:
+      - $PWD:/app
+
+  mysql:
+    image: mysql:5.7
+    container_name: gravity_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: pass
+      MYSQL_DATABASE: gravity
+    ports:
+      - 3306:3306
+    volumes:
+      - $PWD/docker/mysql/data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: gravity_phpmyadmin
+    ports:
+      - 8080:80
+    depends_on:
+      - mysql
+    environment:
+      - PMA_ARBITRARY=1
+      - PMA_HOST=gravity_mysql
+      - PMA_USER=root
+      - PMA_PASSWORD=pass
+      - MAX_EXECUTION_TIME=999999999
+      - MEMORY_LIMIT=4096M
+      - UPLOAD_LIMIT=4096M
+
+  redis:
+    image: redis
+    container_name: gravity_redis
